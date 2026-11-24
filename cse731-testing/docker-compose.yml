@@ -1,0 +1,60 @@
+# Mealie + PostgreSQL for CSE731 end-to-end testing
+# Based on Mealie's official Postgres setup (docs.mealie.io), adjusted for local testing.
+#
+# Start:  docker compose up -d
+# App:    http://localhost:9925
+# DB:     localhost:5433  (user: mealie, password: mealie, db: mealie)
+# Stop:   docker compose down        (keeps data)
+# Reset:  docker compose down -v     (wipes all data - fresh start)
+
+services:
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:v3.31.0   # pinned version, so test results stay reproducible
+    container_name: mealie
+    restart: unless-stopped
+    ports:
+      - "9925:9000"
+    deploy:
+      resources:
+        limits:
+          memory: 1000M
+    volumes:
+      - mealie-data:/app/data/
+    environment:
+      ALLOW_SIGNUP: "true"            # enables the public registration page
+      PUID: 1000
+      PGID: 1000
+      TZ: Asia/Kolkata
+      BASE_URL: http://localhost:9925
+      DB_ENGINE: postgres
+      POSTGRES_USER: mealie
+      POSTGRES_PASSWORD: mealie
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: mealie
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    container_name: mealie-postgres
+    image: postgres:17
+    restart: unless-stopped
+    ports:
+      - "5433:5432"                   # exposed so tests can check database updates directly
+    volumes:
+      - mealie-pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: mealie
+      POSTGRES_USER: mealie
+      PGUSER: mealie
+      POSTGRES_DB: mealie
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mealie-data:
+  mealie-pgdata:
